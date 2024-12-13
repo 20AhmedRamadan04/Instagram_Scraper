@@ -1,0 +1,1 @@
+user names of accs you want to scrape each line should contain one user name
