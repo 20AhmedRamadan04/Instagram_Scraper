@@ -1,84 +1,102 @@
 ---
 
-# Instagram Data Scraper ✨
+# 🚀 **Instagram Data Scraper** 📊  
 
-Welcome to the **Instagram Data Scraper**! This Python-based script helps you gather valuable data from Instagram accounts, including profile details, posts, and comments. Whether you're conducting research or simply curious about the content of Instagram profiles, this tool is designed to make the process easier and more efficient.
+A powerful Python script to scrape Instagram profiles, posts, comments, and post likers. This script automates Instagram data collection and saves it into well-organized CSV files for analysis.  
 
-## Features 🔥
-- **Login to Instagram**: Securely log into Instagram using your credentials.
-- **Scrape Profile Data**: Collect basic profile information like total posts, followers, and following.
-- **Download Posts**: Automatically download images and videos from user profiles.
-- **Extract Comments**: Use Selenium to extract and save comments from posts.
-- **Error Handling**: If a profile can't be accessed, the username is logged for future review.
+> **Note:** Instagram login credentials and target usernames are read from text files for better reusability.  
 
-## Prerequisites ⚙️
-Before using this script, ensure you have the following Python packages installed:
+---
 
-```bash
-pip install instaloader requests selenium beautifulsoup4 colorama
+## 🎯 **Features**  
+
+- **Account Information**: Extract details like followers, following, and total posts.  
+- **Media Downloading**: Download all posts (photos & videos) and save locally.  
+- **Post Insights**: Collect post links, captions, likes, comments, and post dates.  
+- **Comments Scraping**: Extract comments along with commenter usernames and profile links.  
+- **Post Likers Extraction** (with Selenium): Retrieve usernames and links of users who liked a post.  
+
+---
+
+## 🛠️ **Tech Stack**  
+
+- **Python Libraries**:  
+  - [Instaloader](https://github.com/instaloader/instaloader) - Instagram scraping.  
+  - `requests` - Download media files.  
+  - `csv` - Save extracted data.  
+  - [Selenium](https://www.selenium.dev/) - Automate browser tasks to collect "likes" data.  
+  - `colorama` - Add colorful output messages.  
+
+---
+
+## ⚙️ **How It Works**  
+
+1. **Login Credentials**: Add your Instagram credentials in `login_info.txt` (`username:password`).  
+2. **Target Usernames**: Add target usernames to `usernames.txt`, one per line.  
+3. **Script Workflow**:  
+   - Log in to Instagram.  
+   - Extract profile data, posts, and comments.  
+   - Download photos and videos locally.  
+   - Collect likers using Selenium and save everything into CSV files.  
+4. **Data Storage**:  
+   - Profile details: `username_account_data.csv`  
+   - Posts info: `username_posts_details.csv`  
+   - Comments: `username_comments.csv`  
+   - Likers info: `username_likers_data.csv`  
+
+---
+
+## 🔍 **Known Limitation**  
+
+The current version of the script has a minor issue in **extracting post likers**:  
+
+- Sometimes, **not all likers are retrieved**.  
+- The number of extracted likers may vary for each execution.  
+
+> This issue will be addressed in future updates.  
+
+---
+
+## 🚀 **Setup & Run**  
+
+1. **Install Dependencies**:  
+   ```bash
+   pip install instaloader requests selenium colorama
+   ```  
+
+2. **Download WebDriver**:  
+   Ensure you have the correct WebDriver for your browser (e.g., ChromeDriver). Place it in your PATH.  
+
+3. **Run the Script**:  
+   ```bash
+   python instagram_scraper.py
+   ```  
+
+4. **Check Outputs**:  
+   - Media files saved in folders: `username_posts/`.  
+   - CSV files generated with organized data.  
+
+---
+
+## 📂 **File Structure**  
+
+```
+📁 Instagram Scraper  
+│  
+├── instagram_scraper.py      # Main script  
+├── login_info.txt            # Your Instagram credentials  
+├── usernames.txt             # Target usernames  
+├── failed_users.txt          # Failed attempts log  
+├── 📂 username_posts         # Folder for media files  
+├── username_account_data.csv # Account details  
+├── username_posts_details.csv# Post data  
+└── username_comments.csv     # Extracted comments  
 ```
 
-Additionally, ensure you have a compatible browser driver installed (e.g., ChromeDriver) to use with **Selenium**.
+---
 
-## Setup Instructions 📝
+## 🤝 **Contributing**  
 
-1. **Login Information**:
-   - Create a `login_info.txt` file and store your Instagram login credentials in the following format:
-     ```
-     username:password
-     ```
-
-2. **Usernames to Scrape**:
-   - Create a `usernames.txt` file and list the Instagram usernames you want to scrape, one per line.
-
-3. **Log Failed Scraping Attempts**:
-   - If the script encounters errors while scraping a username, it will log the failed users into `failed_users.txt`.
-
-4. **Script Output**:
-   - The script will create the following output files for each user:
-     - `username_account_data.csv`: Contains the user's profile information (posts, followers, following).
-     - `username_posts_details.csv`: Contains details of all posts including captions, likes, comments, and dates.
-
-## How It Works 🚀
-
-1. **Login**:
-   The script starts by logging into Instagram using the credentials provided in `login_info.txt`.
-
-2. **Scraping Profile**:
-   For each username in `usernames.txt`, the script:
-   - Collects profile information like total posts, followers, and following.
-   - Downloads all media (images/videos) from the user's profile into a folder named after the username.
-
-3. **Downloading Posts**:
-   The script downloads images and videos from the posts and saves them to a directory called `username_posts`.
-
-4. **Extracting Comments**:
-   Using **Selenium**, the script automatically scrolls through posts and extracts the comments, saving them in the CSV file.
-
-5. **Error Handling**:
-   If an error occurs, such as an invalid username or inaccessible profile, the username is logged in the `failed_users.txt` file for later review.
-
-## Example Output 💾
-
-The script prints color-coded messages to indicate the progress and any errors encountered during the scraping process:
-- **Green**: Success (e.g., logged in, post downloaded).
-- **Red**: Error (e.g., profile not found).
-- **Blue**: Progress updates (e.g., starting scraping for a user).
-
-## Files Created 📂
-- **`username_account_data.csv`**: Contains account data such as total posts, followers, and following.
-- **`username_posts_details.csv`**: Contains post details (link, caption, likes, comments, and date).
-- **`failed_users.txt`**: Logs usernames that failed to scrape.
-
-## Important Notes ⚠️
-
-- **Login Security**: Always ensure you are using secure login credentials.
-- **Instagram's Terms of Service**: Please ensure you are following Instagram's Terms of Service when using this tool.
-- **Selenium WebDriver**: Make sure to install and configure a compatible WebDriver (like ChromeDriver) for Selenium.
-
-## Final Words 🌟
-This script is designed to simplify Instagram data scraping for analysis and research purposes. It automates the process of logging in, downloading posts, and extracting comments with ease.
-
-Happy scraping! 🎉
+Feel free to submit issues or pull requests to improve the script. Suggestions for solving the likers extraction issue are highly appreciated!  
 
 ---
