@@ -1,0 +1,70 @@
+{
+  "scraped_users": [
+    {
+      "username": "example_user",
+      "profile_data": {
+        "total_posts": 123,
+        "followers": 4567,
+        "following": 234
+      },
+      "posts": [
+        {
+          "link": "https://www.instagram.com/p/ABC123/",
+          "caption": "This is a caption",
+          "likes": 1200,
+          "comments": 50,
+          "date": "2024-12-15 12:00:00",
+          "media": {
+            "type": "image",
+            "url": "https://image_url_here.jpg"
+          }
+        },
+        {
+          "link": "https://www.instagram.com/p/XYZ789/",
+          "caption": "Another caption",
+          "likes": 900,
+          "comments": 20,
+          "date": "2024-12-14 15:30:00",
+          "media": {
+            "type": "video",
+            "url": "https://video_url_here.mp4"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "post_link": "https://www.instagram.com/p/ABC123/",
+          "commenter": {
+            "username": "commenter1",
+            "profile_link": "https://www.instagram.com/commenter1/"
+          },
+          "comment_text": "Great post!"
+        },
+        {
+          "post_link": "https://www.instagram.com/p/ABC123/",
+          "commenter": {
+            "username": "commenter2",
+            "profile_link": "https://www.instagram.com/commenter2/"
+          },
+          "comment_text": "Amazing photo!"
+        }
+      ],
+      "likers": [
+        {
+          "post_link": "https://www.instagram.com/p/ABC123/",
+          "likers": [
+            {
+              "username": "liker1",
+              "profile_link": "https://www.instagram.com/liker1/"
+            },
+            {
+              "username": "liker2",
+              "profile_link": "https://www.instagram.com/liker2/"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "failed_users": ["failed_user1", "failed_user2"]
+}
