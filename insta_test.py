@@ -2,7 +2,6 @@ import instaloader
 import requests
 import os
 import time
-import csv
 from colorama import Fore, Style
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -11,79 +10,117 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
 import re
+from pydantic import BaseModel, ValidationError
+from typing import List
+import json
 
-# Reading login credentials from login_info.txt
-with open("login_info.txt", "r") as file:
-    login_data = file.read().strip().split(":")
-    username = login_data[0]
-    password = login_data[1]
+# Define Pydantic models
+class LoginInfo(BaseModel):
+    username: str
+    password: str
 
-# Reading usernames to scrape from usernames.txt
-with open("usernames.txt", "r") as file:
-    usernames = file.read().splitlines()
+class Usernames(BaseModel):
+    usernames: List[str]
 
-# Opening the failed users file to store any failed scraping attempts
-failed_users = open("failed_users.txt", "w")
+# Define Pydantic models for scraping results
+class ProfileData(BaseModel):
+    username: str
+    total_posts: int
+    followers: int
+    following: int
 
+class PostDetail(BaseModel):
+    link: str
+    caption: str
+    likes: int
+    comments: int
+    date: str
+
+class CommentDetail(BaseModel):
+    post_link: str
+    username: str
+    comment: str
+    profile_link: str
+
+class FailedUser(BaseModel):
+    username: str
+    error_message: str
+
+class FailedAccount(BaseModel):
+    username: str
+    error_message: str
+
+failed_accounts: List[FailedAccount] = []
+
+def save_failed_accounts(failed_accounts: List[FailedAccount], filename="failed_accounts.json"):
+    try:
+        # تحويل قائمة الحسابات الفاشلة إلى JSON باستخدام Pydantic
+        failed_accounts_data = [account.model_dump() for account in failed_accounts]
+        with open(filename, "w", encoding="utf-8") as file:
+            json.dump(failed_accounts_data, file, indent=4, ensure_ascii=False)
+        print(Fore.YELLOW + f"📄 Failed accounts saved to {filename} 📄" + Style.RESET_ALL)
+    except Exception as e:
+        print(Fore.RED + f"❌ Error saving failed accounts: {e} ❌" + Style.RESET_ALL)
+
+
+# Read login credentials from JSON file
+with open("login_info.json", "r") as file:
+    login_info_data = json.load(file)
+    login_info = LoginInfo(**login_info_data)
+    username = login_info.username
+    password = login_info.password
+
+# Read usernames to scrape from JSON file
+with open("usernames.json", "r") as file:
+    usernames_data = json.load(file)
+    usernames = Usernames(**usernames_data).usernames
+
+# Starting the scraping process
+def save_to_json(data, filename):
+    with open(filename, "w", encoding="utf-8") as file:
+        json.dump(data, file, indent=4, ensure_ascii=False)
+
+failed_users: List[FailedUser] = []
 # Starting the scraping process
 for scrape_user in usernames:
     try:
         # Logging into Instagram using Instaloader
         loader = instaloader.Instaloader()
         loader.login(username, password)
-        # Success message for login with a special character
         print(Fore.GREEN + f"✨✨ Logged in successfully as {username} ✨✨" + Style.RESET_ALL)
 
         # Accessing the profile of the user to scrape
         try:
             profile = instaloader.Profile.from_username(loader.context, scrape_user)
-            Posts_Number = profile.mediacount
-            Followers = profile.followers
-            Following = profile.followees
-            # Success message for accessing profile
+            profile_data = ProfileData(
+                username=scrape_user,
+                total_posts=profile.mediacount,
+                followers=profile.followers,
+                following=profile.followees
+            )
             print(Fore.BLUE + f"🌟 Successfully accessed the account {scrape_user} 🌟" + Style.RESET_ALL)
         except instaloader.exceptions.ProfileNotExistsException:
             print(Fore.RED + f"❌ Error: The username {scrape_user} does not exist or cannot be accessed ❌" + Style.RESET_ALL)
-            failed_users.write(f"{scrape_user} - Username does not exist\n")
             continue
 
-        # Saving the account details in a CSV file
-        account_data = [
-            ["Username", scrape_user],
-            ["Total Posts", Posts_Number],
-            ["Followers", Followers],
-            ["Following", Following]
-        ]
-        with open(f"{scrape_user}_account_data.csv", "w", newline="", encoding="utf-8-sig") as file:
-            writer = csv.writer(file)
-            writer.writerows(account_data)
-        # Success message for saving account data
-        print(Fore.YELLOW + f"📊 Account data saved in file: {scrape_user}_account_data.csv 📊" + Style.RESET_ALL)
+        # Save profile data as JSON
+        save_to_json(profile_data.model_dump(), f"{scrape_user}_profile_data.json")
+        print(Fore.YELLOW + f"📊 Account data saved in file: {scrape_user}_profile_data.json 📊" + Style.RESET_ALL)
 
-        # Creating a folder to save the posts
-        save_directory = f"{scrape_user}_posts"
-        os.makedirs(save_directory, exist_ok=True)
-        # Success message for folder creation
-        print(Fore.CYAN + f"📂 Post folder created: {save_directory} 📂" + Style.RESET_ALL)
-
+        # Collecting post details
         post_details = []
-        
-        # Downloading all posts and saving details
         for post in profile.get_posts():
-            post_link = f"https://www.instagram.com/p/{post.shortcode}/"
-            caption = post.caption if post.caption else "No caption"
-            likes = post.likes
-            comments = post.comments
-            post_date = post.date_utc.strftime("%Y-%m-%d %H:%M:%S")
+            post_details.append(PostDetail(
+                link=f"https://www.instagram.com/p/{post.shortcode}/",
+                caption=post.caption if post.caption else "No caption",
+                likes=post.likes,
+                comments=post.comments,
+                date=post.date_utc.strftime("%Y-%m-%d %H:%M:%S")
+            ).model_dump())
 
-            post_details.append({
-                "link": post_link,
-                "caption": caption,
-                "likes": likes,
-                "comments": comments,
-                "date": post_date
-            })
-
+            # Downloading post media (image or video)
+            save_directory = f"{scrape_user}_posts"
+            os.makedirs(save_directory, exist_ok=True)
             if post.is_video:
                 video_url = post.video_url
                 response = requests.get(video_url, stream=True)
@@ -101,177 +138,178 @@ for scrape_user in usernames:
 
             time.sleep(5)
 
-        # Success message for downloading posts
-        print(Fore.GREEN + f"🎥 Downloaded {len(post_details)} posts from {scrape_user} 🎥" + Style.RESET_ALL)
+        # Save post details as JSON
+        save_to_json(post_details, f"{scrape_user}_posts_details.json")
+        print(Fore.GREEN + f"🎥 Post details saved in file: {scrape_user}_posts_details.json 🎥" + Style.RESET_ALL)
 
-        # Saving the post details in a CSV file
-        with open(f"{scrape_user}_posts_details.csv", "w", newline="", encoding="utf-8-sig") as file:
-            writer = csv.writer(file)
-            writer.writerow(["Post Link", "Caption", "Likes", "Comments", "Date"])
-            for post in post_details:
-                writer.writerow([post['link'], post['caption'], post['likes'], post['comments'], post['date']])
-        # Success message for saving post details
-        print(Fore.YELLOW + f"📝 Post details saved in file: {scrape_user}_posts_details.csv 📝" + Style.RESET_ALL)
-
-        # A. Extract comments from Instagram posts
+        # Extract comments from posts
         comments_data = []
         for post in profile.get_posts():
             try:
-                post_link = f"https://www.instagram.com/p/{post.shortcode}/"  # Full post link
+                post_link = f"https://www.instagram.com/p/{post.shortcode}/"
                 for comment in post.get_comments():
-                    comment_owner = comment.owner.username  # Comment owner's username
-                    commenter_profile_link = f"https://www.instagram.com/{comment_owner}/"  # Commenter's profile link
-                    comments_data.append([post_link, comment_owner, comment.text, commenter_profile_link])  # Add post link and comment details
+                    comments_data.append(CommentDetail(
+                        post_link=post_link,
+                        username=comment.owner.username,
+                        comment=comment.text,
+                        profile_link=f"https://www.instagram.com/{comment.owner.username}/"
+                    ).model_dump())
             except Exception as e:
                 print(Fore.RED + f"❌ Error retrieving comments for post {post.shortcode}: {e} ❌" + Style.RESET_ALL)
-                time.sleep(10)  # Wait to avoid getting blocked
+                time.sleep(10)
                 continue
 
-        # Save comments along with the commenter's profile link to the same CSV file
-        with open(f"{scrape_user}_comments.csv", "w", newline="", encoding="utf-8-sig") as file:
-            writer = csv.writer(file)
-            writer.writerow(["Post Link", "Username", "Comment", "Profile Link"])  # Change column to post link
-            writer.writerows(comments_data)
-
+        # Save comments as JSON
+        save_to_json(comments_data, f"{scrape_user}_comments.json")
         print(Fore.CYAN + f"💬 Comments extracted and saved for {scrape_user}" + Style.RESET_ALL)
 
         # ================================ Selenium Part ================================
 
-        # Extract post links from CSV file
-        def extract_post_links(csv_filename):
-            post_links = []
-            with open(csv_filename, mode="r", newline='', encoding="utf-8-sig") as file:
-                reader = csv.reader(file)
-                next(reader)  # Skip header
-                for row in reader:
-                    post_links.append(row[0])  # Links in the first column
-            return post_links
+        # Define Pydantic model for Post
+        class Post(BaseModel):
+            link: str
+            caption: str
+            likes: int
+            comments: int
+            date: str
 
-        # Load accounts from file
+        # Define Pydantic model for Account
+        class Account(BaseModel):
+            username: str
+            password: str
+
+        # Extract post links from JSON file
+        def extract_post_links(json_filename):
+            try:
+                with open(json_filename, mode="r", encoding="utf-8") as file:
+                    posts = json.load(file)
+                    return [Post(**post).link for post in posts]  # Validate data with Pydantic and extract links
+            except (json.JSONDecodeError, ValidationError) as e:
+                print(Fore.RED + f"❌ Error reading JSON file: {e} ❌" + Style.RESET_ALL)
+                return []
+
+        # تحميل الحسابات من ملف JSON
         def load_accounts(file_path):
-            with open(file_path, 'r') as file:
-                accounts = [line.strip().split(':') for line in file.readlines()]
-            return accounts
+            with open(file_path, "r") as json_file:
+                account_data = json.load(json_file)  # تحميل البيانات
+                # إذا كان الملف يحتوي على حساب واحد فقط
+                if isinstance(account_data, dict):
+                    return [Account(**account_data)]
+                # إذا كان الملف يحتوي على قائمة من الحسابات
+                elif isinstance(account_data, list):
+                    return [Account(**data) for data in account_data]
+                else:
+                    raise ValueError("Invalid JSON format for accounts")
 
         # Instagram login
         def login(driver, username, password):
-            driver.get("https://www.instagram.com/accounts/login/")
-            WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.NAME, "username")))
+            try:
+                driver.get("https://www.instagram.com/accounts/login/")
+                WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.NAME, "username")))
 
-            # Enter login data
-            driver.find_element(By.NAME, "username").send_keys(username)
-            driver.find_element(By.NAME, "password").send_keys(password)
-            driver.find_element(By.NAME, "password").send_keys(Keys.RETURN)
-
-            # Wait for login
-            time.sleep(5)
+                driver.find_element(By.NAME, "username").send_keys(username)
+                driver.find_element(By.NAME, "password").send_keys(password)
+                driver.find_element(By.NAME, "password").send_keys(Keys.RETURN)
+                time.sleep(5)
+                return True  # تسجيل الدخول ناجح
+            except Exception as e:
+                print(Fore.RED + f"❌ Error logging in using Selenium for {username}: {e} ❌" + Style.RESET_ALL)
+                # إضافة الحساب الفاشل إلى قائمة failed_accounts
+                failed_accounts.append(FailedAccount(username=username, error_message=str(e)))
+                save_failed_accounts(failed_accounts)
+                return False  # حدث خطأ في تسجيل الدخول
 
         # Extract username from the link
         def extract_username(link):
             match = re.search(r"https://www\.instagram\.com/([^/]+)/", link)
-            if match:
-                return match.group(1)
-            return None
+            return match.group(1) if match else None
 
         # Get likers of a post
         def get_likers(driver, post_url):
             driver.get(post_url)
-
             try:
-                # Try to find the like button
                 like_button = WebDriverWait(driver, 10).until(
                     EC.element_to_be_clickable((By.XPATH, '//a[contains(@href, "liked_by")]'))
                 )
                 like_button.click()
-
-                # Wait for likes dialog to appear
                 WebDriverWait(driver, 10).until(
                     EC.presence_of_element_located((By.XPATH, '//div[@role="dialog"]'))
                 )
-                time.sleep(3)  # Wait for initial loading of the dialog
+                time.sleep(3)
 
-                # Extract user links from the dialog
                 elements = driver.find_elements(By.XPATH, '//div[@role="dialog"]//a[contains(@href, "/") and not(contains(@href, "/p/"))]')
                 likers_links = {elem.get_attribute("href") for elem in elements}
-
-                # Extract usernames from links
                 likers_usernames = [extract_username(link) for link in likers_links]
 
-                # Start scrolling and retry loading if needed
                 max_scroll_retries = 5
                 for retry in range(max_scroll_retries):
-                    print(f"🔄 Attempt {retry + 1}/{max_scroll_retries} to scroll and load more likers...")
-                    time.sleep(2)  # Add waiting time before scrolling
-                    
-                    # Scroll to the bottom of the dialog
+                    time.sleep(2)
                     driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", driver.find_element(By.XPATH, '//div[@role="dialog"]'))
-                    time.sleep(3)  # Wait for new data to load
-                    
-                    # Extract links again after scrolling
+                    time.sleep(3)
                     elements = driver.find_elements(By.XPATH, '//div[@role="dialog"]//a[contains(@href, "/") and not(contains(@href, "/p/"))]')
                     new_links = {elem.get_attribute("href") for elem in elements}
                     likers_links.update(new_links)
-
-                    # Update usernames
                     likers_usernames = [extract_username(link) for link in likers_links]
-
-                    # Stop if no new links are loaded
                     if len(new_links) == len(likers_links):
-                        print("✅ No more new likers found. Exiting scroll loop.")
                         break
-
             except NoSuchElementException:
-                print(Fore.YELLOW + f"⚠️ Warning: This post has no likes or the like button is not found. Skipping... ⚠️" + Style.RESET_ALL)
-                likers_usernames = []
-                likers_links = []
-
+                likers_usernames, likers_links = [], []
             except Exception as e:
                 print(Fore.RED + f"❌ Error during extracting likers for {post_url}: {e} ❌" + Style.RESET_ALL)
-                likers_usernames = []
-                likers_links = []
+                likers_usernames, likers_links = [], []
 
-            return likers_usernames, likers_links
+            return likers_usernames, list(likers_links)
 
+        # Save likers data to JSON file
+        def save_to_json(scrape_user, post_url, usernames, links, output_file):
+            try:
+                data = {
+                    "post_url": post_url,
+                    "username": scrape_user,
+                    "likers": [{"username": uname, "profile_link": link} for uname, link in zip(usernames, links)]
+                }
+                with open(output_file, mode="a", encoding="utf-8") as file:
+                    json.dump(data, file, ensure_ascii=False, indent=4)
+            except Exception as e:
+                print(Fore.RED + f"❌ Error saving to JSON: {e} ❌" + Style.RESET_ALL)
 
-
-        # Save likers data to CSV file
-        def save_to_csv(username, post_url, usernames, links):
-            filename = f"{scrape_user}_likers_data.csv"
-            with open(filename, mode="a", newline='', encoding="utf-8-sig") as file:
-                writer = csv.writer(file)
-                for username, link in zip(usernames, links):
-                    writer.writerow(["Post Link", "Liker Username", "Profile Link"])
-                    writer.writerow([post_url, username, link])
+        def save_failed_users(failed_users: List[FailedUser], filename="failed_users.json"):
+            try:
+                # تحويل قائمة المستخدمين الفاشلين إلى JSON باستخدام Pydantic
+                failed_users_data = [user.model_dump() for user in failed_users]
+                with open(filename, "w", encoding="utf-8") as file:
+                    json.dump(failed_users_data, file, indent=4, ensure_ascii=False)
+                print(Fore.YELLOW + f"📄 Failed users saved to {filename} 📄" + Style.RESET_ALL)
+            except Exception as e:
+                print(Fore.RED + f"❌ Error saving failed users: {e} ❌" + Style.RESET_ALL)
 
         # Main function
         if __name__ == "__main__":
-            accounts = load_accounts("Login_info.txt")
+            accounts = load_accounts("Login_info.json")
             driver = webdriver.Chrome()
 
             try:
-                for username, password in accounts:
-                    print(Fore.GREEN + f"✔️ Logging in with account: {username}..." + Style.RESET_ALL)
-                    login(driver, username, password)
+                for account in accounts:
+                    print(Fore.GREEN + f"✔️ Logging in with account: {account.username}..." + Style.RESET_ALL)
+                    login(driver, account.username, account.password)
                     time.sleep(3)
 
-                    # Extract post links from the CSV file created by Instaloader
-                    post_links = extract_post_links(f"{scrape_user}_posts_details.csv")
+                    post_links = extract_post_links(f"{scrape_user}_posts_details.json")
                     if not post_links:
                         print(Fore.YELLOW + "⚠️ No posts found to extract data from. Skipping... ⚠️" + Style.RESET_ALL)
+                        continue
 
                     for post_url in post_links:
                         print(Fore.CYAN + f"🔍 Extracting likers' data from: {post_url}..." + Style.RESET_ALL)
-                        likers_usernames, likers_links = get_likers(driver, post_url)  # Number of likers to extract
+                        likers_usernames, likers_links = get_likers(driver, post_url)
 
                         if likers_usernames:
                             print(Fore.GREEN + f"🎉 Likers and links extracted successfully 🎉" + Style.RESET_ALL)
                         else:
                             print(Fore.RED + f"❌ No likers data found for post: {post_url} ❌" + Style.RESET_ALL)
 
-                        # Save the results to a separate CSV file for each user
-                        save_to_csv(username, post_url, likers_usernames, likers_links)
-
-                    break  # Stop after processing the first account (you can modify this as needed)
+                        save_to_json(scrape_user, post_url, likers_usernames, likers_links, f"{scrape_user}likers_data.json")
+                    break
 
             except Exception as e:
                 print(Fore.RED + f"❌ An error occurred: {e} ❌" + Style.RESET_ALL)
@@ -279,22 +317,47 @@ for scrape_user in usernames:
             finally:
                 driver.quit()
                 print(Fore.MAGENTA + "🛑 Process completed, browser closed. 🛑" + Style.RESET_ALL)
+                # Success message after completing the account scraping
+                print(Fore.MAGENTA + f"✅ Successfully scraped data from {scrape_user} ✅" + Style.RESET_ALL)
 
-        # Success message after completing the account scraping
-        print(Fore.MAGENTA + f"✅ Successfully scraped data from {scrape_user} ✅" + Style.RESET_ALL)
+                # Message indicating the script is moving to the next account
+                if usernames.index(scrape_user) < len(usernames) - 1:
+                    print(Fore.CYAN + f"🌟 Now moving to the next account... 🌟" + Style.RESET_ALL)
 
-        # Message indicating the script is moving to the next account
-        if usernames.index(scrape_user) < len(usernames) - 1:
-            print(Fore.CYAN + f"🌟 Now moving to the next account... 🌟" + Style.RESET_ALL)
+    except instaloader.exceptions.BadCredentialsException as e:
+        print(Fore.RED + f"❌ Error logging in with {username}: {e} ❌" + Style.RESET_ALL)
+        # إضافة الحساب الفاشل إلى قائمة failed_accounts
+        failed_accounts.append(FailedAccount(username=username, error_message="Wrong credentials"))
+        save_failed_accounts(failed_accounts)
+        continue
+    except Exception as e:
+        print(Fore.RED + f"❌ Unexpected error during login for {username}: {e} ❌" + Style.RESET_ALL)
+        # إضافة الحساب الفاشل إلى قائمة failed_accounts
+        failed_accounts.append(FailedAccount(username=username, error_message=str(e)))
+        save_failed_accounts(failed_accounts)
+        continue
+    except Exception as e:
+        print(Fore.RED + f"❌ Error processing {scrape_user}: {e} ❌" + Style.RESET_ALL)
+        
+        # إضافة المستخدم الفاشل مع رسالة الخطأ إلى القائمة
+        failed_users.append(FailedUser(username=scrape_user, error_message=str(e)))
+        
+        # حفظ المستخدمين الفاشلين فورًا في الملف
+        save_failed_users(failed_users)
+        continue
 
     except Exception as e:
         # In case of an error, write the failed user to the failed users file and continue with the next account
         print(Fore.RED + f"❌ Error scraping data from {scrape_user}: {e} ❌" + Style.RESET_ALL)
-        failed_users.write(f"{scrape_user}\n")
-        continue  # Skip the failed user and continue with the next
 
-# Closing the failed users file after processing all accounts
-failed_users.close()
+        if failed_accounts:
+          save_failed_accounts(failed_accounts)
+          print(Fore.MAGENTA + "🔔 All failed accounts have been logged. 🔔" + Style.RESET_ALL)
+
+        if failed_users:
+          save_failed_users(failed_users)
+          print(Fore.MAGENTA + "🔔 All failed users have been logged. 🔔" + Style.RESET_ALL)
+        continue  # Skip the failed user and continue with the next
 
 # Final message indicating the script finished successfully
 print(Fore.GREEN + "🎉 Script completed successfully. 🎉" + Style.RESET_ALL)
