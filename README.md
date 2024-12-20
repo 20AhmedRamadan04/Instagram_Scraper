@@ -37,7 +37,6 @@ There's a small glitch with extracting the full list of people who liked a post.
 Run this in your terminal to install the required packages:
 ```bash
 pip install instaloader selenium pydantic requests colorama
-```
 
 ### Step 2: Set Up Your WebDriver
 Make sure **ChromeDriver** or **GeckoDriver** is installed and added to your system’s PATH.
@@ -49,7 +48,6 @@ Make sure **ChromeDriver** or **GeckoDriver** is installed and added to your sys
 3. **Run the Script**: 
 ```bash
 python instagram_scraper.py
-```
 
 This will start scraping data from the listed profiles. You will get the following outputs:
 
@@ -73,7 +71,7 @@ If any account or user fails during the scraping process, their details will be 
     "followers": 1200,
     "following": 350
   }
-  ```
+  
 
 - **Post Details**:
   ```json
@@ -84,7 +82,7 @@ If any account or user fails during the scraping process, their details will be 
     "comments": 50,
     "date": "2024-12-20 14:30:00"
   }
-  ```
+  
 
 - **Likers Data** (Limited due to current issue):
   ```json
@@ -96,7 +94,7 @@ If any account or user fails during the scraping process, their details will be 
       {"username": "bob", "profile_link": "https://www.instagram.com/bob/"}
     ]
   }
-  ```
+  
 
 ## 🛠️ Contributing
 
