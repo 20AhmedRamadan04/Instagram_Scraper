@@ -46,23 +46,6 @@ class FailedUser(BaseModel):
     username: str
     error_message: str
 
-class FailedAccount(BaseModel):
-    username: str
-    error_message: str
-
-failed_accounts: List[FailedAccount] = []
-
-def save_failed_accounts(failed_accounts: List[FailedAccount], filename="failed_accounts.json"):
-    try:
-        # تحويل قائمة الحسابات الفاشلة إلى JSON باستخدام Pydantic
-        failed_accounts_data = [account.model_dump() for account in failed_accounts]
-        with open(filename, "w", encoding="utf-8") as file:
-            json.dump(failed_accounts_data, file, indent=4, ensure_ascii=False)
-        print(Fore.YELLOW + f"📄 Failed accounts saved to {filename} 📄" + Style.RESET_ALL)
-    except Exception as e:
-        print(Fore.RED + f"❌ Error saving failed accounts: {e} ❌" + Style.RESET_ALL)
-
-
 # Read login credentials from JSON file
 with open("login_info.json", "r") as file:
     login_info_data = json.load(file)
@@ -75,12 +58,23 @@ with open("usernames.json", "r") as file:
     usernames_data = json.load(file)
     usernames = Usernames(**usernames_data).usernames
 
+failed_users: List[FailedUser] = []
+
 # Starting the scraping process
 def save_to_json(data, filename):
     with open(filename, "w", encoding="utf-8") as file:
         json.dump(data, file, indent=4, ensure_ascii=False)
 
-failed_users: List[FailedUser] = []
+def save_failed_users(failed_users: List[FailedUser], filename="failed_users.json"):
+    try:
+        # تحويل قائمة المستخدمين الفاشلين إلى JSON باستخدام Pydantic
+        failed_users_data = [user.model_dump() for user in failed_users]
+        with open(filename, "w", encoding="utf-8") as file:
+            json.dump(failed_users_data, file, indent=4, ensure_ascii=False)
+        print(Fore.YELLOW + f"📄 Failed users saved to {filename} 📄" + Style.RESET_ALL)
+    except Exception as e:
+        print(Fore.RED + f"❌ Error saving failed users: {e} ❌" + Style.RESET_ALL)
+
 # Starting the scraping process
 for scrape_user in usernames:
     try:
@@ -203,21 +197,13 @@ for scrape_user in usernames:
 
         # Instagram login
         def login(driver, username, password):
-            try:
-                driver.get("https://www.instagram.com/accounts/login/")
-                WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.NAME, "username")))
+            driver.get("https://www.instagram.com/accounts/login/")
+            WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.NAME, "username")))
 
-                driver.find_element(By.NAME, "username").send_keys(username)
-                driver.find_element(By.NAME, "password").send_keys(password)
-                driver.find_element(By.NAME, "password").send_keys(Keys.RETURN)
-                time.sleep(5)
-                return True  # تسجيل الدخول ناجح
-            except Exception as e:
-                print(Fore.RED + f"❌ Error logging in using Selenium for {username}: {e} ❌" + Style.RESET_ALL)
-                # إضافة الحساب الفاشل إلى قائمة failed_accounts
-                failed_accounts.append(FailedAccount(username=username, error_message=str(e)))
-                save_failed_accounts(failed_accounts)
-                return False  # حدث خطأ في تسجيل الدخول
+            driver.find_element(By.NAME, "username").send_keys(username)
+            driver.find_element(By.NAME, "password").send_keys(password)
+            driver.find_element(By.NAME, "password").send_keys(Keys.RETURN)
+            time.sleep(5)
 
         # Extract username from the link
         def extract_username(link):
@@ -273,16 +259,6 @@ for scrape_user in usernames:
             except Exception as e:
                 print(Fore.RED + f"❌ Error saving to JSON: {e} ❌" + Style.RESET_ALL)
 
-        def save_failed_users(failed_users: List[FailedUser], filename="failed_users.json"):
-            try:
-                # تحويل قائمة المستخدمين الفاشلين إلى JSON باستخدام Pydantic
-                failed_users_data = [user.model_dump() for user in failed_users]
-                with open(filename, "w", encoding="utf-8") as file:
-                    json.dump(failed_users_data, file, indent=4, ensure_ascii=False)
-                print(Fore.YELLOW + f"📄 Failed users saved to {filename} 📄" + Style.RESET_ALL)
-            except Exception as e:
-                print(Fore.RED + f"❌ Error saving failed users: {e} ❌" + Style.RESET_ALL)
-
         # Main function
         if __name__ == "__main__":
             accounts = load_accounts("Login_info.json")
@@ -324,21 +300,8 @@ for scrape_user in usernames:
                 if usernames.index(scrape_user) < len(usernames) - 1:
                     print(Fore.CYAN + f"🌟 Now moving to the next account... 🌟" + Style.RESET_ALL)
 
-    except instaloader.exceptions.BadCredentialsException as e:
-        print(Fore.RED + f"❌ Error logging in with {username}: {e} ❌" + Style.RESET_ALL)
-        # إضافة الحساب الفاشل إلى قائمة failed_accounts
-        failed_accounts.append(FailedAccount(username=username, error_message="Wrong credentials"))
-        save_failed_accounts(failed_accounts)
-        continue
-    except Exception as e:
-        print(Fore.RED + f"❌ Unexpected error during login for {username}: {e} ❌" + Style.RESET_ALL)
-        # إضافة الحساب الفاشل إلى قائمة failed_accounts
-        failed_accounts.append(FailedAccount(username=username, error_message=str(e)))
-        save_failed_accounts(failed_accounts)
-        continue
     except Exception as e:
         print(Fore.RED + f"❌ Error processing {scrape_user}: {e} ❌" + Style.RESET_ALL)
-        
         # إضافة المستخدم الفاشل مع رسالة الخطأ إلى القائمة
         failed_users.append(FailedUser(username=scrape_user, error_message=str(e)))
         
@@ -349,16 +312,12 @@ for scrape_user in usernames:
     except Exception as e:
         # In case of an error, write the failed user to the failed users file and continue with the next account
         print(Fore.RED + f"❌ Error scraping data from {scrape_user}: {e} ❌" + Style.RESET_ALL)
-
-        if failed_accounts:
-          save_failed_accounts(failed_accounts)
-          print(Fore.MAGENTA + "🔔 All failed accounts have been logged. 🔔" + Style.RESET_ALL)
-
-        if failed_users:
-          save_failed_users(failed_users)
-          print(Fore.MAGENTA + "🔔 All failed users have been logged. 🔔" + Style.RESET_ALL)
         continue  # Skip the failed user and continue with the next
 
 # Final message indicating the script finished successfully
 print(Fore.GREEN + "🎉 Script completed successfully. 🎉" + Style.RESET_ALL)
+if failed_users:
+    save_failed_users(failed_users)
+    print(Fore.MAGENTA + "🔔 All failed users have been logged. 🔔" + Style.RESET_ALL)
+
 input("Press Enter to exit...")
