@@ -9,7 +9,7 @@ Welcome to the **Instagram Scraper**! ✨ The ultimate tool to extract Instagram
 - **Post Details**: Extract caption, likes, comments, post date, and even download images/videos!
 - **Comments Scraping**: Pull all comments on posts with usernames and profile links.
 - **Likes Extraction**: Retrieve users who liked a post, including usernames and profile links (note the current limitation below).
-- **Error Logging**: Automatically save all failed attempts in `failed_accounts.json` and `failed_users.json` for easy troubleshooting.
+- **Error Logging**: Automatically save all failed attempts in `failed_users.json` for easy troubleshooting.
 
 ## ⚠️ Known Issue - Likers Data
 
@@ -20,7 +20,7 @@ There's a small glitch with extracting the full list of people who liked a post.
 1. **Login**: Logs into Instagram using your credentials stored in a `login_info.json` file.
 2. **Scraping**: Gathers profile data, posts, comments, and likes using **Instaloader** and **Selenium**.
 3. **Data Export**: All data is neatly organized and saved in JSON files for further analysis.
-4. **Error Handling**: Any login or scraping issues are logged in the `failed_accounts.json` and `failed_users.json` files, making it easy to keep track of errors.
+4. **Error Handling**: Any login or scraping issues are logged in the `failed_users.json` file, making it easy to keep track of errors.
 
 ## 💡 Setup & Installation
 
@@ -102,12 +102,6 @@ Want to make it even better? 🤩 Feel free to:
 - Fork the repo
 - Add features or fix bugs
 - Submit a pull request
-
-## 📄 License
-
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for more details.
-
----
 
 🚨 **Important**: Be aware of Instagram’s terms of service when using this tool. Avoid scraping in ways that violate their policies or disrupt their platform.
 
