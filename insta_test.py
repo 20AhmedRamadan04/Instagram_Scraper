@@ -67,7 +67,7 @@ def save_to_json(data, filename):
 
 def save_failed_users(failed_users: List[FailedUser], filename="failed_users.json"):
     try:
-        # تحويل قائمة المستخدمين الفاشلين إلى JSON باستخدام Pydantic
+        # Convert failed users list to JSON using Pydantic
         failed_users_data = [user.model_dump() for user in failed_users]
         with open(filename, "w", encoding="utf-8") as file:
             json.dump(failed_users_data, file, indent=4, ensure_ascii=False)
@@ -182,14 +182,14 @@ for scrape_user in usernames:
                 print(Fore.RED + f"❌ Error reading JSON file: {e} ❌" + Style.RESET_ALL)
                 return []
 
-        # تحميل الحسابات من ملف JSON
+        # Load accounts from JSON file
         def load_accounts(file_path):
             with open(file_path, "r") as json_file:
-                account_data = json.load(json_file)  # تحميل البيانات
-                # إذا كان الملف يحتوي على حساب واحد فقط
+                account_data = json.load(json_file)  # Load data
+                # If the file contains only one account
                 if isinstance(account_data, dict):
                     return [Account(**account_data)]
-                # إذا كان الملف يحتوي على قائمة من الحسابات
+                # If the file contains a list of accounts
                 elif isinstance(account_data, list):
                     return [Account(**data) for data in account_data]
                 else:
@@ -302,10 +302,10 @@ for scrape_user in usernames:
 
     except Exception as e:
         print(Fore.RED + f"❌ Error processing {scrape_user}: {e} ❌" + Style.RESET_ALL)
-        # إضافة المستخدم الفاشل مع رسالة الخطأ إلى القائمة
+        # Add the failed user with the error message to the list.
         failed_users.append(FailedUser(username=scrape_user, error_message=str(e)))
         
-        # حفظ المستخدمين الفاشلين فورًا في الملف
+        # Save failed users immediately to file
         save_failed_users(failed_users)
         continue
 
